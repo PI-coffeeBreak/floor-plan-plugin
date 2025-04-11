@@ -1,5 +1,5 @@
 from utils.api import Router
-from .routers.floorplan import router
+from .router import router
 from .schemas.floorplan_component import FloorPlanComponent
 from services.component_registry import ComponentRegistry
 
