@@ -1,4 +1,4 @@
-from utils.api import router
+from utils.api import Router
 from .floorplan import router as floor_plan_router
 
 router = Router()
