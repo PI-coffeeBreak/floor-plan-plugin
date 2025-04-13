@@ -7,7 +7,6 @@ from ..models.floorplan import FloorPlan as FloorPlanModel
 from ..schemas.floorplan import FloorPlanCreate, FloorPlan as FloorPlanSchema
 from services.media import MediaService
 from ..utils.uuid import is_valid_uuid
-from typing import Optional
 
 router = Router()
 
@@ -15,27 +14,37 @@ router = Router()
 def create_floorplan(
     floorplan: FloorPlanCreate,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["admin"])),
-    file: UploadFile | None = File(None)
+    user=Depends(check_role(["admin"]))
 ):
-    image_url_or_id = floorplan.image
-
-    if file:
-        media = MediaService.register(
-            db=db,
-            max_size=10 * 1024 * 1024,
-            allows_rewrite=False,
-            valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
-            alias=file.filename
-        )
-        MediaService.create(db=db, uuid=media.uuid, data=file.file, filename=file.filename)
-        image_url_or_id = media.uuid
-
-    new = FloorPlanModel(**floorplan.dict(exclude={"image"}), image=image_url_or_id)
+    new = FloorPlanModel(**floorplan.dict())
     db.add(new)
     db.commit()
     db.refresh(new)
     return new
+
+@router.post("/{floorplan_id}/upload-image", response_model=FloorPlanSchema)
+def upload_floorplan_image(
+    floorplan_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user=Depends(check_role(["admin"]))
+):
+    floorplan = db.query(FloorPlanModel).get(floorplan_id)
+    if not floorplan:
+        raise HTTPException(status_code=404, detail="FloorPlan not found")
+
+    media = MediaService.register(
+        db=db,
+        max_size=10 * 1024 * 1024,
+        allows_rewrite=True,
+        valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
+        alias=file.filename
+    )
+    MediaService.create(db=db, uuid=media.uuid, data=file.file, filename=file.filename)
+    floorplan.image = media.uuid
+    db.commit()
+    db.refresh(floorplan)
+    return floorplan
 
 @router.get("/", response_model=list[FloorPlanSchema])
 def list_floorplans(db: Session = Depends(get_db)):
@@ -53,30 +62,50 @@ def update_floorplan(
     floorplan_id: int,
     data: FloorPlanCreate,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["admin"])),
-    file: Optional[UploadFile] = File(None)
+    user=Depends(check_role(["admin"]))
 ):
     """
-    Update an existing floor plan.
-    - If a file is uploaded, we handle the MediaService logic.
-    - If floorplan.image is a valid UUID, we reuse it with create_or_replace.
-    - Otherwise, we create a new UUID.
+    Update an existing floor plan, excluding image upload.
+    - If 'image' is a UUID, we assume it's already managed and skip updating it.
     """
     fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
     if not fp:
         raise HTTPException(status_code=404, detail="Floor plan not found")
 
-    if not file:
-        for key, value in data.dict().items():
-            setattr(fp, key, value)
-        db.commit()
-        db.refresh(fp)
-        return fp
+    update_data = data.dict()
+
+    # Skip image update if it looks like an existing UUID
+    if update_data.get("image") and is_valid_uuid(update_data["image"]):
+        update_data.pop("image")
+
+    for key, value in update_data.items():
+        setattr(fp, key, value)
+
+    db.commit()
+    db.refresh(fp)
+    return fp
+
+@router.put("/{floorplan_id}/upload-image", response_model=FloorPlanSchema)
+def upload_floorplan_image(
+    floorplan_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user=Depends(check_role(["admin"]))
+):
+    """
+    Upload or replace the image associated with a floor plan.
+    - If current image UUID is valid, replace it.
+    - Otherwise, register and assign a new media UUID.
+    """
+    fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
+    if not fp:
+        raise HTTPException(status_code=404, detail="Floor plan not found")
 
     if is_valid_uuid(fp.image):
-        media_uuid = fp.image
-        MediaService.create_or_replace(db, media_uuid, file.file, file.filename)
+        # Replace the existing media
+        MediaService.create_or_replace(db, fp.image, file.file, file.filename)
     else:
+        # Register a new media file
         media = MediaService.register(
             db=db,
             max_size=10 * 1024 * 1024,
@@ -86,11 +115,6 @@ def update_floorplan(
         )
         MediaService.create(db=db, uuid=media.uuid, data=file.file, filename=file.filename)
         fp.image = media.uuid
-
-    # Update other fields
-    # We exclude the image field from the update to avoid overwriting it
-    for key, value in data.dict(exclude={"image"}).items():
-        setattr(fp, key, value)
 
     db.commit()
     db.refresh(fp)
