@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 class FloorPlanBase(BaseModel):
     name: str
-    description: str
+    details: str
     image: str
 
 class FloorPlanCreate(FloorPlanBase):
