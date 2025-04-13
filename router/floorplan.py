@@ -33,6 +33,8 @@ def get_floorplan(floorplan_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Floor plan not found")
     return fp
 
+from ..utils.uuid import is_valid_uuid
+
 @router.put("/{floorplan_id}", response_model=FloorPlanSchema)
 def update_floorplan(
     floorplan_id: int,
@@ -41,8 +43,8 @@ def update_floorplan(
     user=Depends(check_role(["admin"]))
 ):
     """
-    Update an existing floor plan, excluding image upload.
-    - If 'image' is a UUID, we assume it's already managed and skip updating it.
+    Update an existing floor plan.
+    - If 'image' is a UUID, we assume it's managed by MediaService and skip updating it.
     """
     fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
     if not fp:
@@ -50,9 +52,9 @@ def update_floorplan(
 
     update_data = data.dict()
 
-    # Skip image update if it looks like an existing UUID
-    if update_data.get("image") and is_valid_uuid(update_data["image"]):
-        update_data.pop("image")
+    # Evita substituir o UUID se já for uma imagem gerida
+    if is_valid_uuid(fp.image):
+        update_data.pop("image", None)
 
     for key, value in update_data.items():
         setattr(fp, key, value)
@@ -73,6 +75,10 @@ def upload_floorplan_image(
     - If current image UUID is valid, replace it.
     - Otherwise, register and assign a new media UUID.
     """
+
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Only images are allowed.")
+
     fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
     if not fp:
         raise HTTPException(status_code=404, detail="Floor plan not found")
