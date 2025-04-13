@@ -22,30 +22,6 @@ def create_floorplan(
     db.refresh(new)
     return new
 
-@router.post("/{floorplan_id}/upload-image", response_model=FloorPlanSchema)
-def upload_floorplan_image(
-    floorplan_id: int,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    user=Depends(check_role(["admin"]))
-):
-    floorplan = db.query(FloorPlanModel).get(floorplan_id)
-    if not floorplan:
-        raise HTTPException(status_code=404, detail="FloorPlan not found")
-
-    media = MediaService.register(
-        db=db,
-        max_size=10 * 1024 * 1024,
-        allows_rewrite=True,
-        valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
-        alias=file.filename
-    )
-    MediaService.create(db=db, uuid=media.uuid, data=file.file, filename=file.filename)
-    floorplan.image = media.uuid
-    db.commit()
-    db.refresh(floorplan)
-    return floorplan
-
 @router.get("/", response_model=list[FloorPlanSchema])
 def list_floorplans(db: Session = Depends(get_db)):
     return db.query(FloorPlanModel).all()
