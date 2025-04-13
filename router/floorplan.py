@@ -87,6 +87,8 @@ def update_floorplan(
         MediaService.create(db=db, uuid=media.uuid, data=file.file, filename=file.filename)
         fp.image = media.uuid
 
+    # Update other fields
+    # We exclude the image field from the update to avoid overwriting it
     for key, value in data.dict(exclude={"image"}).items():
         setattr(fp, key, value)
 
