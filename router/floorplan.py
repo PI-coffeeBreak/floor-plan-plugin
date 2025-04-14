@@ -6,7 +6,7 @@ from dependencies.auth import check_role
 from ..models.floorplan import FloorPlan as FloorPlanModel
 from ..schemas.floorplan import FloorPlanCreate, FloorPlan as FloorPlanSchema
 from services.media import MediaService
-from ..utils.uuid import is_valid_uuid
+from ..utils.uuid_url import is_valid_uuid, is_valid_url
 
 router = Router()
 
@@ -16,6 +16,9 @@ def create_floorplan(
     db: Session = Depends(get_db),
     user=Depends(check_role(["admin"]))
 ):
+    if floorplan.image and not is_valid_url(floorplan.image):
+        raise HTTPException(status_code=400, detail="Invalid image URL.")
+
     new = FloorPlanModel(**floorplan.dict())
     db.add(new)
     db.commit()
@@ -33,7 +36,7 @@ def get_floorplan(floorplan_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Floor plan not found")
     return fp
 
-from ..utils.uuid import is_valid_uuid
+from ..utils.uuid_url import is_valid_uuid
 
 @router.put("/{floorplan_id}", response_model=FloorPlanSchema)
 def update_floorplan(
@@ -42,19 +45,21 @@ def update_floorplan(
     db: Session = Depends(get_db),
     user=Depends(check_role(["admin"]))
 ):
-    """
-    Update an existing floor plan.
-    - If 'image' is a UUID, we assume it's managed by MediaService and skip updating it.
-    """
     fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
     if not fp:
         raise HTTPException(status_code=404, detail="Floor plan not found")
 
-    update_data = data.dict()
+    update_data = data.dict(exclude_unset=True)
 
-    # Evita substituir o UUID se já for uma imagem gerida
-    if is_valid_uuid(fp.image):
-        update_data.pop("image", None)
+    new_image = update_data.get("image")
+
+    if new_image:
+        if is_valid_uuid(fp.image) and is_valid_url(new_image):
+            MediaService.unregister(db, fp.image, force=True)
+        elif is_valid_uuid(fp.image) and not is_valid_url(new_image):
+            update_data.pop("image", None)
+        elif is_valid_url(fp.image) and not is_valid_url(new_image):
+            raise HTTPException(status_code=400, detail="Invalid image URL.")
 
     for key, value in update_data.items():
         setattr(fp, key, value)
@@ -118,3 +123,23 @@ def delete_floorplan(
     db.delete(fp)
     db.commit()
     return fp
+
+@router.delete("/{floorplan_id}/image", response_model=FloorPlanSchema)
+def remove_floorplan_image(
+    floorplan_id: int,
+    db: Session = Depends(get_db),
+    user=Depends(check_role(["admin"]))
+):
+    floorplan = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
+    if not floorplan:
+        raise HTTPException(status_code=404, detail="Floor plan not found")
+
+    if is_valid_uuid(floorplan.image):
+        MediaService.unregister(db, floorplan.image, force=True)
+    else:
+        raise HTTPException(status_code=404, detail="Current image is external or not was not found")
+
+    floorplan.image = None
+    db.commit()
+    db.refresh(floorplan)
+    return floorplan
