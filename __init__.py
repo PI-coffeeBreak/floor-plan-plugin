@@ -6,7 +6,7 @@ from services.ui.plugin_settings import create_plugin_setting, delete_plugin_set
 from schemas.plugin_setting import PluginSetting
 import logging
 
-logger = logging.getLogger("coffeebreak.plugins.floorplan")
+logger = logging.getLogger("coffeebreak.floor-plan")
 
 PLUGIN_TITLE = "Floor Plan"
 PLUGIN_DESCRIPTION = "A plugin to display a floor plan of the building."
