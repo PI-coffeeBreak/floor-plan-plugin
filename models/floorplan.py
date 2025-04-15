@@ -6,5 +6,5 @@ class FloorPlan(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    image = Column(String, nullable=False)
+    details = Column(Text, nullable=True)
+    image = Column(String, nullable=True)
