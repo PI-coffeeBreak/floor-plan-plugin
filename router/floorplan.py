@@ -18,14 +18,14 @@ def create_floorplan(
 ):
     image = floorplan.image
 
-    if not is_valid_url(image):
+    if not image or not is_valid_url(image):
         # Register new media entry
         media = MediaService.register(
             db=db,
             max_size=10 * 1024 * 1024,
             allows_rewrite=True,
             valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
-            alias=image
+            alias=image or "floorplan-image"
         )
         image = media.uuid
 
