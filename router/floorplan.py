@@ -36,8 +36,6 @@ def get_floorplan(floorplan_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Floor plan not found")
     return fp
 
-from ..utils.uuid_url import is_valid_uuid
-
 @router.put("/{floorplan_id}", response_model=FloorPlanSchema)
 def update_floorplan(
     floorplan_id: int,
@@ -63,45 +61,6 @@ def update_floorplan(
 
     for key, value in update_data.items():
         setattr(fp, key, value)
-
-    db.commit()
-    db.refresh(fp)
-    return fp
-
-@router.put("/{floorplan_id}/upload-image", response_model=FloorPlanSchema)
-def upload_floorplan_image(
-    floorplan_id: int,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    user=Depends(check_role(["admin"]))
-):
-    """
-    Upload or replace the image associated with a floor plan.
-    - If current image UUID is valid, replace it.
-    - Otherwise, register and assign a new media UUID.
-    """
-
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Invalid file type. Only images are allowed.")
-
-    fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
-    if not fp:
-        raise HTTPException(status_code=404, detail="Floor plan not found")
-
-    if is_valid_uuid(fp.image):
-        # Replace the existing media
-        MediaService.create_or_replace(db, fp.image, file.file, file.filename)
-    else:
-        # Register a new media file
-        media = MediaService.register(
-            db=db,
-            max_size=10 * 1024 * 1024,
-            allows_rewrite=True,
-            valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
-            alias=file.filename
-        )
-        MediaService.create(db=db, uuid=media.uuid, data=file.file, filename=file.filename)
-        fp.image = media.uuid
 
     db.commit()
     db.refresh(fp)
