@@ -25,7 +25,7 @@ def create_floorplan(
             max_size=10 * 1024 * 1024,
             allows_rewrite=True,
             valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
-            alias=floorplan.name,
+            alias=floorplan.name
         )
         image = media.uuid
 
