@@ -18,7 +18,7 @@ def create_floorplan(
 ):
     image = floorplan.image
 
-    if image and not is_valid_url(image):
+    if not is_valid_url(image):
         # Register new media entry
         media = MediaService.register(
             db=db,
