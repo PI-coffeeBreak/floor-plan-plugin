@@ -16,10 +16,20 @@ def create_floorplan(
     db: Session = Depends(get_db),
     user=Depends(check_role(["admin"]))
 ):
-    if floorplan.image and not is_valid_url(floorplan.image):
-        raise HTTPException(status_code=400, detail="Invalid image URL.")
+    image = floorplan.image
 
-    new = FloorPlanModel(**floorplan.dict())
+    if image and not is_valid_url(image):
+        # Register new media entry
+        media = MediaService.register(
+            db=db,
+            max_size=10 * 1024 * 1024,
+            allows_rewrite=True,
+            valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
+            alias=image
+        )
+        image = media.uuid
+
+    new = FloorPlanModel(**floorplan.dict(), image=image)
     db.add(new)
     db.commit()
     db.refresh(new)
@@ -50,7 +60,6 @@ def update_floorplan(
     update_data = data.dict(exclude_unset=True)
 
     new_image = update_data.get("image")
-
     if new_image:
         if is_valid_uuid(fp.image) and is_valid_url(new_image):
             MediaService.unregister(db, fp.image, force=True)
