@@ -30,7 +30,7 @@ def create_floorplan(
         )
         image = media.uuid
 
-    new = FloorPlanModel(**floorplan.dict(), image=image)
+    new = FloorPlanModel(**floorplan.dict(exclude={"image"}), image=image)
     db.add(new)
     db.commit()
     db.refresh(new)
