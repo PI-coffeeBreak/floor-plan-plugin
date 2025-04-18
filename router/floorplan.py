@@ -7,6 +7,7 @@ from ..models.floorplan import FloorPlan as FloorPlanModel
 from ..schemas.floorplan import FloorPlanCreate, FloorPlan as FloorPlanSchema
 from services.media import MediaService
 from ..utils.uuid_url import is_valid_uuid, is_valid_url
+from uuid import uuid4
 
 router = Router()
 
@@ -25,7 +26,7 @@ def create_floorplan(
             max_size=10 * 1024 * 1024,
             allows_rewrite=True,
             valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
-            alias=floorplan.name
+            alias=f"{floorplan.name}-{uuid4()}"
         )
         image = media.uuid
 
