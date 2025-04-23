@@ -114,7 +114,7 @@ def remove_floorplan_image(
     if is_valid_uuid(floorplan.image):
         MediaService.unregister(db, floorplan.image, force=True)
     else:
-        raise HTTPException(status_code=404, detail="Current image is external or not was not found")
+        raise HTTPException(status_code=404, detail="Current image is external or was not found")
 
     floorplan.image = None
     db.commit()
