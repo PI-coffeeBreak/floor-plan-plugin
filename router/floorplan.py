@@ -6,7 +6,7 @@ from dependencies.auth import check_role
 from ..models.floorplan import FloorPlan as FloorPlanModel
 from ..schemas.floorplan import FloorPlanCreate, FloorPlan as FloorPlanSchema
 from services.media import MediaService
-from ..utils.utils import is_valid_uuid, is_valid_url, slugify
+from ..utils.media import is_valid_uuid, is_valid_url, slugify
 from uuid import uuid4
 
 router = Router()
