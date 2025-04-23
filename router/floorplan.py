@@ -6,14 +6,10 @@ from dependencies.auth import check_role
 from ..models.floorplan import FloorPlan as FloorPlanModel
 from ..schemas.floorplan import FloorPlanCreate, FloorPlan as FloorPlanSchema
 from services.media import MediaService
-from ..utils.uuid_url import is_valid_uuid, is_valid_url
+from ..utils.utils import is_valid_uuid, is_valid_url, slugify
 from uuid import uuid4
-import re
 
 router = Router()
-
-def slugify(text):
-    return re.sub(r'\W+', '-', text).strip('-').lower()
 
 @router.post("/", response_model=FloorPlanSchema)
 def create_floorplan(
