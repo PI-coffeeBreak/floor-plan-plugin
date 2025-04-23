@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger("coffeebreak.floor-plan")
 
-PLUGIN_TITLE = "Floor Plan"
+PLUGIN_TITLE = "floor-plan-plugin"
 PLUGIN_DESCRIPTION = "A plugin to display a floor plan of the building."
 
 async def register_plugin():
