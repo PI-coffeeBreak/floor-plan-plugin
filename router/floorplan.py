@@ -8,25 +8,30 @@ from ..schemas.floorplan import FloorPlanCreate, FloorPlan as FloorPlanSchema
 from services.media import MediaService
 from ..utils.uuid_url import is_valid_uuid, is_valid_url
 from uuid import uuid4
+import re
 
 router = Router()
+
+def slugify(text):
+    return re.sub(r'\W+', '-', text).strip('-').lower()
 
 @router.post("/", response_model=FloorPlanSchema)
 def create_floorplan(
     floorplan: FloorPlanCreate,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["admin"]))
+    user=Depends(check_role(["manage_floorplans"]))
 ):
     image = floorplan.image
 
     if not image or not is_valid_url(image):
-        # Register new media entry
+        # Register new media entry with slugified alias
+        alias = f"{slugify(floorplan.name)}-{uuid4()}"
         media = MediaService.register(
             db=db,
             max_size=10 * 1024 * 1024,
             allows_rewrite=True,
             valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
-            alias=f"{floorplan.name}-{uuid4()}"
+            alias=alias
         )
         image = media.uuid
 
@@ -52,7 +57,7 @@ def update_floorplan(
     floorplan_id: int,
     data: FloorPlanCreate,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["admin"]))
+    user=Depends(check_role(["manage_floorplans"]))
 ):
     fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
     if not fp:
@@ -67,7 +72,14 @@ def update_floorplan(
         elif is_valid_uuid(fp.image) and not is_valid_url(new_image):
             update_data.pop("image", None)
         elif is_valid_url(fp.image) and not is_valid_url(new_image):
-            raise HTTPException(status_code=400, detail="Invalid image URL.")
+            media = MediaService.register(
+                db=db,
+                max_size=10 * 1024 * 1024,
+                allows_rewrite=True,
+                valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
+                alias=f"{slugify(fp.name)}-{uuid4()}"
+            )
+            update_data["image"] = media.uuid
 
     for key, value in update_data.items():
         setattr(fp, key, value)
@@ -80,7 +92,7 @@ def update_floorplan(
 def delete_floorplan(
     floorplan_id: int,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["admin"]))
+    user=Depends(check_role(["manage_floorplans"]))
 ):
     fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
     if not fp:
@@ -97,7 +109,7 @@ def delete_floorplan(
 def remove_floorplan_image(
     floorplan_id: int,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["admin"]))
+    user=Depends(check_role(["manage_floorplans"]))
 ):
     floorplan = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
     if not floorplan:
