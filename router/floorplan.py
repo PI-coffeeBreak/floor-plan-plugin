@@ -100,23 +100,3 @@ def delete_floorplan(
     db.delete(fp)
     db.commit()
     return fp
-
-@router.delete("/{floorplan_id}/image", response_model=FloorPlanSchema)
-def remove_floorplan_image(
-    floorplan_id: int,
-    db: Session = Depends(get_db),
-    user=Depends(check_role(["manage_floorplans"]))
-):
-    floorplan = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
-    if not floorplan:
-        raise HTTPException(status_code=404, detail="Floor plan not found")
-
-    if is_valid_uuid(floorplan.image):
-        MediaService.unregister(db, floorplan.image, force=True)
-    else:
-        raise HTTPException(status_code=404, detail="Current image is external or was not found")
-
-    floorplan.image = None
-    db.commit()
-    db.refresh(floorplan)
-    return floorplan
