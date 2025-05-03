@@ -15,7 +15,7 @@ router = Router()
 def create_floorplan(
     floorplan: FloorPlanCreate,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["manage_floorplans"]))
+    user=Depends(check_role(["cb-manage_floorplans"]))
 ):
     image = floorplan.image
 
@@ -53,7 +53,7 @@ def update_floorplan(
     floorplan_id: int,
     data: FloorPlanCreate,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["manage_floorplans"]))
+    user=Depends(check_role(["cb-manage_floorplans"]))
 ):
     fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
     if not fp:
@@ -88,7 +88,7 @@ def update_floorplan(
 def delete_floorplan(
     floorplan_id: int,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["manage_floorplans"]))
+    user=Depends(check_role(["cb-manage_floorplans"]))
 ):
     fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
     if not fp:
