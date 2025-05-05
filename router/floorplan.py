@@ -1,15 +1,20 @@
-from fastapi import Depends, HTTPException, File, UploadFile
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from utils.api import Router
 from dependencies.database import get_db
 from dependencies.auth import check_role
-from ..models.floorplan import FloorPlan as FloorPlanModel
 from ..schemas.floorplan import FloorPlanCreate, FloorPlan as FloorPlanSchema
-from services.media import MediaService
-from ..utils.media import is_valid_uuid, is_valid_url, slugify
-from uuid import uuid4
+from ..services.floorplan_service import FloorPlanService
 
 router = Router()
+
+@router.get("/", response_model=list[FloorPlanSchema])
+def list_floorplans(db: Session = Depends(get_db)):
+    return FloorPlanService(db).list()
+
+@router.get("/{floorplan_id}", response_model=FloorPlanSchema)
+def get_floorplan(floorplan_id: int, db: Session = Depends(get_db)):
+    return FloorPlanService(db).get(floorplan_id)
 
 @router.post("/", response_model=FloorPlanSchema)
 def create_floorplan(
@@ -17,72 +22,16 @@ def create_floorplan(
     db: Session = Depends(get_db),
     user=Depends(check_role(["cb-manage_floorplans"]))
 ):
-    image = floorplan.image
-
-    if not image or not is_valid_url(image):
-        # Register new media entry with slugified alias
-        alias = f"{slugify(floorplan.name)}-{uuid4()}"
-        media = MediaService.register(
-            db=db,
-            max_size=10 * 1024 * 1024,
-            allows_rewrite=True,
-            valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
-            alias=alias
-        )
-        image = media.uuid
-
-    new = FloorPlanModel(**floorplan.dict(exclude={"image"}), image=image)
-    db.add(new)
-    db.commit()
-    db.refresh(new)
-    return new
-
-@router.get("/", response_model=list[FloorPlanSchema])
-def list_floorplans(db: Session = Depends(get_db)):
-    return db.query(FloorPlanModel).all()
-
-@router.get("/{floorplan_id}", response_model=FloorPlanSchema)
-def get_floorplan(floorplan_id: int, db: Session = Depends(get_db)):
-    fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
-    if not fp:
-        raise HTTPException(status_code=404, detail="Floor plan not found")
-    return fp
+    return FloorPlanService(db).create(floorplan)
 
 @router.put("/{floorplan_id}", response_model=FloorPlanSchema)
 def update_floorplan(
     floorplan_id: int,
-    data: FloorPlanCreate,
+    floorplan: FloorPlanCreate,
     db: Session = Depends(get_db),
     user=Depends(check_role(["cb-manage_floorplans"]))
 ):
-    fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
-    if not fp:
-        raise HTTPException(status_code=404, detail="Floor plan not found")
-
-    update_data = data.dict(exclude_unset=True)
-
-    new_image = update_data.get("image")
-    if new_image:
-        if is_valid_uuid(fp.image) and is_valid_url(new_image):
-            MediaService.unregister(db, fp.image, force=True)
-        elif is_valid_uuid(fp.image) and not is_valid_url(new_image):
-            update_data.pop("image", None)
-        elif is_valid_url(fp.image) and not is_valid_url(new_image):
-            media = MediaService.register(
-                db=db,
-                max_size=10 * 1024 * 1024,
-                allows_rewrite=True,
-                valid_extensions=['.jpg', '.jpeg', '.png', '.webp'],
-                alias=f"{slugify(fp.name)}-{uuid4()}"
-            )
-            update_data["image"] = media.uuid
-
-    for key, value in update_data.items():
-        setattr(fp, key, value)
-
-    db.commit()
-    db.refresh(fp)
-    return fp
+    return FloorPlanService(db).update(floorplan_id, floorplan)
 
 @router.delete("/{floorplan_id}", response_model=FloorPlanSchema)
 def delete_floorplan(
@@ -90,13 +39,4 @@ def delete_floorplan(
     db: Session = Depends(get_db),
     user=Depends(check_role(["cb-manage_floorplans"]))
 ):
-    fp = db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
-    if not fp:
-        raise HTTPException(status_code=404, detail="Floor plan not found")
-
-    if is_valid_uuid(fp.image):
-        MediaService.unregister(db, fp.image, force=True)
-
-    db.delete(fp)
-    db.commit()
-    return fp
+    return FloorPlanService(db).delete(floorplan_id)
