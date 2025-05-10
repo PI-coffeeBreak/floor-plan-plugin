@@ -22,6 +22,9 @@ class FloorPlanService:
         return fp
 
     def create(self, data: FloorPlanCreate) -> FloorPlanModel:
+        if self.db.query(FloorPlanModel).filter_by(name=data.name).first():
+            raise HTTPException(status_code=400, detail="Floor plan with this name already exists")
+
         image = data.image
         if not image or not is_valid_url(image):
             alias = f"{slugify(data.name)}-{uuid4()}"
@@ -48,6 +51,15 @@ class FloorPlanService:
         return new_fp
 
     def update(self, floorplan_id: int, data: FloorPlanCreate) -> FloorPlanModel:
+        if self.db.query(FloorPlanModel).filter_by(name=data.name).first():
+            existing_fp = self.db.query(FloorPlanModel).filter_by(name=data.name).first()
+            if existing_fp.id != floorplan_id:
+                raise HTTPException(status_code=400, detail="Floor plan with this name already exists")
+        if data.order:
+            existing_order_fp = self.db.query(FloorPlanModel).filter_by(order=data.order).first()
+            if existing_order_fp and existing_order_fp.id != floorplan_id:
+                raise HTTPException(status_code=400, detail="Floor plan with this order already exists")
+
         fp = self.get(floorplan_id)
         update_data = data.dict(exclude_unset=True)
 
