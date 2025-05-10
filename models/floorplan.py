@@ -8,3 +8,4 @@ class FloorPlan(Base):
     name = Column(String, nullable=False)
     details = Column(Text, nullable=True)
     image = Column(String, nullable=True)
+    order = Column(Integer, nullable=False, default=0) 

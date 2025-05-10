@@ -13,7 +13,7 @@ class FloorPlanService:
         self.db = db
 
     def list(self) -> List[FloorPlanModel]:
-        return self.db.query(FloorPlanModel).all()
+        return self.db.query(FloorPlanModel).order_by(FloorPlanModel.order).all()
 
     def get(self, floorplan_id: int) -> FloorPlanModel:
         fp = self.db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
@@ -34,7 +34,14 @@ class FloorPlanService:
             )
             image = media.uuid
 
-        new_fp = FloorPlanModel(**data.dict(exclude={"image"}), image=image)
+        max_order = self.db.query(FloorPlanModel).order_by(FloorPlanModel.order.desc()).first()
+        new_order = (max_order.order + 1) if max_order else 1
+
+        new_fp = FloorPlanModel(
+            **data.dict(exclude={"image", "order"}),
+            image=image,
+            order=new_order
+        )
         self.db.add(new_fp)
         self.db.commit()
         self.db.refresh(new_fp)
