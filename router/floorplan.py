@@ -5,6 +5,7 @@ from dependencies.database import get_db
 from dependencies.auth import check_role
 from ..schemas.floorplan import FloorPlanCreate, FloorPlan as FloorPlanSchema
 from ..services.floorplan_service import FloorPlanService
+from typing import List
 
 router = Router()
 
@@ -40,3 +41,15 @@ def delete_floorplan(
     user=Depends(check_role(["cb-manage_floorplans"]))
 ):
     return FloorPlanService(db).delete(floorplan_id)
+
+@router.patch("/order")
+def update_orders(
+    orders: List[dict],
+    db: Session = Depends(get_db),
+    user=Depends(check_role(["cb-manage_floorplans"]))
+):
+    for order in orders:
+        fp = FloorPlanService(db).get(order["id"])
+        fp.order = order["order"]
+    db.commit()
+    return {"status": "ok"}

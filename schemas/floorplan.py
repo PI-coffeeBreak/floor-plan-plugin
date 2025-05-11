@@ -5,6 +5,7 @@ class FloorPlanBase(BaseModel):
     name: str
     details: Optional[str] = None
     image: Optional[str] = None
+    order: Optional[int] = None  # NOVO
 
 class FloorPlanCreate(FloorPlanBase):
     pass

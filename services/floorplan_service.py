@@ -13,7 +13,7 @@ class FloorPlanService:
         self.db = db
 
     def list(self) -> List[FloorPlanModel]:
-        return self.db.query(FloorPlanModel).all()
+        return self.db.query(FloorPlanModel).order_by(FloorPlanModel.order).all()
 
     def get(self, floorplan_id: int) -> FloorPlanModel:
         fp = self.db.query(FloorPlanModel).filter_by(id=floorplan_id).first()
@@ -22,6 +22,9 @@ class FloorPlanService:
         return fp
 
     def create(self, data: FloorPlanCreate) -> FloorPlanModel:
+        if self.db.query(FloorPlanModel).filter_by(name=data.name).first():
+            raise HTTPException(status_code=400, detail="Floor plan with this name already exists")
+
         image = data.image
         if not image or not is_valid_url(image):
             alias = f"{slugify(data.name)}-{uuid4()}"
@@ -34,13 +37,29 @@ class FloorPlanService:
             )
             image = media.uuid
 
-        new_fp = FloorPlanModel(**data.dict(exclude={"image"}), image=image)
+        max_order = self.db.query(FloorPlanModel).order_by(FloorPlanModel.order.desc()).first()
+        new_order = (max_order.order + 1) if max_order else 1
+
+        new_fp = FloorPlanModel(
+            **data.dict(exclude={"image", "order"}),
+            image=image,
+            order=new_order
+        )
         self.db.add(new_fp)
         self.db.commit()
         self.db.refresh(new_fp)
         return new_fp
 
     def update(self, floorplan_id: int, data: FloorPlanCreate) -> FloorPlanModel:
+        if self.db.query(FloorPlanModel).filter_by(name=data.name).first():
+            existing_fp = self.db.query(FloorPlanModel).filter_by(name=data.name).first()
+            if existing_fp.id != floorplan_id:
+                raise HTTPException(status_code=400, detail="Floor plan with this name already exists")
+        if data.order:
+            existing_order_fp = self.db.query(FloorPlanModel).filter_by(order=data.order).first()
+            if existing_order_fp and existing_order_fp.id != floorplan_id:
+                raise HTTPException(status_code=400, detail="Floor plan with this order already exists")
+
         fp = self.get(floorplan_id)
         update_data = data.dict(exclude_unset=True)
 
