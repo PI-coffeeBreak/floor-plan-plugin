@@ -21,7 +21,7 @@ def get_floorplan(floorplan_id: int, db: Session = Depends(get_db)):
 def create_floorplan(
     floorplan: FloorPlanCreate,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["cb-manage_floorplans"]))
+    user=Depends(check_role(["manage_floorplans"]))
 ):
     return FloorPlanService(db).create(floorplan)
 
@@ -30,7 +30,7 @@ def update_floorplan(
     floorplan_id: int,
     floorplan: FloorPlanCreate,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["cb-manage_floorplans"]))
+    user=Depends(check_role(["manage_floorplans"]))
 ):
     return FloorPlanService(db).update(floorplan_id, floorplan)
 
@@ -38,7 +38,7 @@ def update_floorplan(
 def delete_floorplan(
     floorplan_id: int,
     db: Session = Depends(get_db),
-    user=Depends(check_role(["cb-manage_floorplans"]))
+    user=Depends(check_role(["manage_floorplans"]))
 ):
     return FloorPlanService(db).delete(floorplan_id)
 
@@ -46,7 +46,7 @@ def delete_floorplan(
 def update_orders(
     orders: List[dict],
     db: Session = Depends(get_db),
-    user=Depends(check_role(["cb-manage_floorplans"]))
+    user=Depends(check_role(["manage_floorplans"]))
 ):
     for order in orders:
         fp = FloorPlanService(db).get(order["id"])
